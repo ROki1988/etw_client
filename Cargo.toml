@@ -1,0 +1,12 @@
+[package]
+name = "etw_client"
+version = "0.1.0"
+authors = ["ROki1988 <roki.swindler@gmail.com>"]
+
+[dependencies]
+widestring = "*"
+
+[dependencies.winapi]
+git = "https://github.com/ROki1988/winapi-rs.git"
+branch = "etw"
+features = ["winerror", "errhandlingapi", "eventtrace", "handleapi"]

@@ -1,0 +1,37 @@
+[root]
+name = "etw_client"
+version = "0.1.0"
+dependencies = [
+ "widestring 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winapi 0.3.0-alpha.0 (git+https://github.com/ROki1988/winapi-rs.git?branch=etw)",
+]
+
+[[package]]
+name = "widestring"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "winapi"
+version = "0.3.0-alpha.0"
+source = "git+https://github.com/ROki1988/winapi-rs.git?branch=etw#54a1e918ff5853ed61c8d4cc57fa5d44038b01ff"
+dependencies = [
+ "winapi-i686-pc-windows-gnu 0.3.1 (git+https://github.com/ROki1988/winapi-rs.git?branch=etw)",
+ "winapi-x86_64-pc-windows-gnu 0.3.1 (git+https://github.com/ROki1988/winapi-rs.git?branch=etw)",
+]
+
+[[package]]
+name = "winapi-i686-pc-windows-gnu"
+version = "0.3.1"
+source = "git+https://github.com/ROki1988/winapi-rs.git?branch=etw#54a1e918ff5853ed61c8d4cc57fa5d44038b01ff"
+
+[[package]]
+name = "winapi-x86_64-pc-windows-gnu"
+version = "0.3.1"
+source = "git+https://github.com/ROki1988/winapi-rs.git?branch=etw#54a1e918ff5853ed61c8d4cc57fa5d44038b01ff"
+
+[metadata]
+"checksum widestring 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7157704c2e12e3d2189c507b7482c52820a16dfa4465ba91add92f266667cadb"
+"checksum winapi 0.3.0-alpha.0 (git+https://github.com/ROki1988/winapi-rs.git?branch=etw)" = "<none>"
+"checksum winapi-i686-pc-windows-gnu 0.3.1 (git+https://github.com/ROki1988/winapi-rs.git?branch=etw)" = "<none>"
+"checksum winapi-x86_64-pc-windows-gnu 0.3.1 (git+https://github.com/ROki1988/winapi-rs.git?branch=etw)" = "<none>"
