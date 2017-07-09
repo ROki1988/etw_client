@@ -2,6 +2,8 @@ extern crate winapi;
 extern crate widestring;
 
 use std::mem;
+use std::thread;
+use std::time::Duration;
 use std::ptr;
 use winapi::um::errhandlingapi;
 use winapi::um::eventtrace;
@@ -10,6 +12,15 @@ use widestring::WideCString;
 const INVALID_PROCESSTRACE_HANDLE: eventtrace::TRACEHANDLE = -1isize as eventtrace::TRACEHANDLE;
 
 fn main() {
+    thread::spawn(move || {
+        run();
+    });
+    loop {
+        thread::sleep(Duration::new(1, 0));
+    }
+}
+
+fn run() {
     let mut l: eventtrace::EVENT_TRACE_LOGFILE;
     let ws = WideCString::from_str("WDC.BE95A9B1-DE15-4B78-B923-A12AB70BE951").unwrap();
     unsafe {
@@ -30,9 +41,15 @@ fn main() {
                 eventtrace::CloseTrace(h);            
             }
         }
-    }
+    }    
 }
 
 unsafe extern "system" fn process_event(p_event: eventtrace::PEVENT_RECORD) {
-    println!("{:?}", p_event);
+    let event = *p_event;
+    if event.EventHeader.EventDescriptor.Id == 0 {
+        return;
+    }
+
+    println!("Id: {:}", (*p_event).EventHeader.EventDescriptor.Id);
+    println!("Task: {:}", (*p_event).EventHeader.EventDescriptor.Task);
 }
