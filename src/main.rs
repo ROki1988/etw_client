@@ -38,18 +38,81 @@ fn run() {
             let r = eventtrace::ProcessTrace(&mut h, 1, ptr::null_mut(), ptr::null_mut());
             if r != winapi::shared::winerror::ERROR_SUCCESS {
                 println!("ERROR 0x{:x}", r);
-                eventtrace::CloseTrace(h);            
+                eventtrace::CloseTrace(h);
             }
         }
-    }    
+    }
 }
 
 unsafe extern "system" fn process_event(p_event: eventtrace::PEVENT_RECORD) {
-    let event = *p_event;
-    if event.EventHeader.EventDescriptor.Id == 0 {
+    let mut buff_size = 0;
+
+    if eventtrace::TdhGetEventInformation(p_event,
+                                          0,
+                                          ptr::null_mut(),
+                                          ptr::null_mut(),
+                                          &mut buff_size) !=
+       winapi::shared::winerror::ERROR_INSUFFICIENT_BUFFER {
         return;
     }
 
-    println!("Id: {:}", (*p_event).EventHeader.EventDescriptor.Id);
-    println!("Task: {:}", (*p_event).EventHeader.EventDescriptor.Task);
+    let buff = vec![0u8; buff_size as usize];
+    let info = buff.as_ptr() as eventtrace::PTRACE_EVENT_INFO;
+    if eventtrace::TdhGetEventInformation(p_event, 0, ptr::null_mut(), info, &mut buff_size) !=
+       winapi::shared::winerror::ERROR_SUCCESS {
+        return;
+    }
+
+    show_event_info(p_event, info);
+}
+
+unsafe fn show_event_info(p_event: eventtrace::PEVENT_RECORD,
+                          p_info: eventtrace::PTRACE_EVENT_INFO) {
+    if (*p_info).EventDescriptor.Opcode != 1 {
+        return;
+    }
+
+    let p = p_info as *const u8;
+    println!("Id: {:}.", (*p_event).EventHeader.EventDescriptor.Id);
+    println!("Task: {:}.", (*p_event).EventHeader.EventDescriptor.Task);
+    println!("PID: {:}.", (*p_event).EventHeader.ProcessId);
+    println!("Provider: {:}.",
+             read_wstring(p, (*p_info).ProviderNameOffset as isize).to_string_lossy());
+    println!("Level: {:}.",
+             read_wstring(p, (*p_info).LevelNameOffset as isize).to_string_lossy());
+    println!("Channel: {:}.",
+             read_wstring(p, (*p_info).ChannelNameOffset as isize).to_string_lossy());
+    println!("Keywords: {:}.",
+             read_wstring(p, (*p_info).KeywordsNameOffset as isize).to_string_lossy());
+    println!("Task: {:}.",
+             read_wstring(p, (*p_info).TaskNameOffset as isize).to_string_lossy());
+    println!("Opcode: {:}.",
+             read_wstring(p, (*p_info).OpcodeNameOffset as isize).to_string_lossy());
+    println!("ActivityID: {:}.",
+             read_wstring(p, (*p_info).ActivityIDNameOffset as isize).to_string_lossy());
+    println!("RelatedActivityID: {:}.",
+             read_wstring(p, (*p_info).RelatedActivityIDNameOffset as isize).to_string_lossy());
+    println!("TopLevelPropertyCount: {:}.",
+             (*p_info).TopLevelPropertyCount);
+
+    for i in 0..(*p_info).TopLevelPropertyCount - 1 {
+        show_property_info(p_event,
+                           p_info,
+                           (*p_info).EventPropertyInfoArray[i as usize],
+                           None)
+    }
+}
+
+unsafe fn show_property_info(p_event: eventtrace::PEVENT_RECORD,
+                             p_info: eventtrace::PTRACE_EVENT_INFO,
+                             property_info: eventtrace::EVENT_PROPERTY_INFO,
+                             StructName: Option<WideCString>) {
+    println!("offset: {:}", property_info.NameOffset);
+    let name = read_wstring(p_info as *const u8, property_info.NameOffset as isize);
+    println!("name: {:}", name.to_string_lossy());
+
+}
+
+unsafe fn read_wstring(p: *const u8, offset: isize) -> WideCString {
+    WideCString::from_ptr_str(p.wrapping_offset(offset) as *const u16)
 }
