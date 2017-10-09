@@ -160,11 +160,11 @@ enum TdhProperty {
     Bool(bool),
     Pointer32(u32),
     Pointer64(u64),
+    NoImple,
 }
 
 unsafe fn get_property_map(p_event: eventtrace::PEVENT_RECORD,
-                           p_info: eventtrace::PTRACE_EVENT_INFO,
-                           property_info: eventtrace::EVENT_PROPERTY_INFO)
+                           p_info: eventtrace::PTRACE_EVENT_INFO)
                            -> HashMap<String, TdhProperty> {
 
     if (*p_info).TopLevelPropertyCount <= 0 {
@@ -188,8 +188,7 @@ unsafe fn get_property_info(p_event: eventtrace::PEVENT_RECORD,
     let name = read_wstring(p_info as *const u8, property_info.NameOffset as isize);
 
     if property_info.Flags == eventtrace::PropertyStruct {
-        let p: *mut eventtrace::EVENT_PROPERTY_INFO = &mut (*p_info).EventPropertyInfoArray[0];
-        let r = get_property_map(p_event, p_info, *(p.offset(property_info.EventPropertyInfo_u1.StructType().StructStartIndex as isize)));
+        let r = get_property_map(p_event, p_info);
         (name.to_string_lossy(), TdhProperty::Struct(Box::new(r)))
     } else {
         get_property_info_non_struct(p_event, p_info, property_info, None)
@@ -201,26 +200,26 @@ unsafe fn get_property_info_non_struct(p_event: eventtrace::PEVENT_RECORD,
                                        property_info: eventtrace::EVENT_PROPERTY_INFO,
                                        struct_name: Option<&WideCString>)
                                        -> Result<(String, TdhProperty), u32> {
-    use winapi::shared::ntdef::{PSHORT, PUSHORT, PLONG, PULONG, PULONGLONG, DOUBLE};
+    use winapi::shared::ntdef::{PSHORT, PUSHORT, PLONG, PULONG, PULONGLONG, DOUBLE, PCHAR, PUCHAR, PLONGLONG};
     use winapi::shared::minwindef::{PFLOAT, PBOOL};
 
 
     let name = read_wstring(p_info as *const u8, property_info.NameOffset as isize);
     let mut a = if let Some(pat) = struct_name {
         vec![eventtrace::PROPERTY_DATA_DESCRIPTOR {
-                 PropertyName: name.as_ptr() as u64,
+                 PropertyName: pat.as_ptr() as u64,
                  ArrayIndex: 0,
                  Reserved: 0,
              },
              eventtrace::PROPERTY_DATA_DESCRIPTOR {
-                 PropertyName: pat.as_ptr() as u64,
-                 ArrayIndex: 0,
+                 PropertyName: name.as_ptr() as u64,
+                 ArrayIndex: std::u32::MAX,
                  Reserved: 0,
              }]
     } else {
         vec![eventtrace::PROPERTY_DATA_DESCRIPTOR {
                  PropertyName: name.as_ptr() as u64,
-                 ArrayIndex: 0,
+                 ArrayIndex: std::u32::MAX,
                  Reserved: 0,
              }]
     };
@@ -271,17 +270,20 @@ unsafe fn get_property_info_non_struct(p_event: eventtrace::PEVENT_RECORD,
                 TdhProperty::WString(WideCString::from_ptr_str(buff.as_ptr() as *const u16))
             }
             //            eventtrace::TDH_INTYPE_ANSISTRING => (),
+            eventtrace::TDH_INTYPE_INT8 => TdhProperty::Int8(*(buff.as_ptr() as PCHAR)),
+            eventtrace::TDH_INTYPE_UINT8 => TdhProperty::UInt8(*(buff.as_ptr() as PUCHAR)),
             eventtrace::TDH_INTYPE_INT16 => TdhProperty::Int16(*(buff.as_ptr() as PSHORT)),
             eventtrace::TDH_INTYPE_UINT16 => TdhProperty::UInt16(*(buff.as_ptr() as PUSHORT)),
             eventtrace::TDH_INTYPE_INT32 => TdhProperty::Int32(*(buff.as_ptr() as PLONG)),
             eventtrace::TDH_INTYPE_UINT32 => TdhProperty::UInt32(*(buff.as_ptr() as PULONG)),
+            eventtrace::TDH_INTYPE_INT64 => TdhProperty::Int64(*(buff.as_ptr() as PLONGLONG)),
             eventtrace::TDH_INTYPE_UINT64 => TdhProperty::UInt64(*(buff.as_ptr() as PULONGLONG)),
             eventtrace::TDH_INTYPE_FLOAT => TdhProperty::Float(*(buff.as_ptr() as PFLOAT)),
             eventtrace::TDH_INTYPE_DOUBLE => TdhProperty::Double(*(buff.as_ptr() as *const DOUBLE)),
             eventtrace::TDH_INTYPE_BOOLEAN => TdhProperty::Bool(*(buff.as_ptr() as PBOOL) != 0),
             //            eventtrace::TDH_INTYPE_BINARY => (),
             //            eventtrace::TDH_INTYPE_GUID => (),
-            eventtrace::TDH_INTYPE_POINTER => TdhProperty::Pointer64(buff.as_ptr() as u64),
+            eventtrace::TDH_INTYPE_POINTER => if (*p_event).EventHeader.Flags & 0x0020 == 0x0020 {TdhProperty::Pointer32(buff.as_ptr() as u32)} else {TdhProperty::Pointer64(buff.as_ptr() as u64)},
             //            eventtrace::TDH_INTYPE_FILETIME => (),
             //            eventtrace::TDH_INTYPE_SYSTEMTIME => (),
             //            eventtrace::TDH_INTYPE_SID => (),
@@ -298,7 +300,7 @@ unsafe fn get_property_info_non_struct(p_event: eventtrace::PEVENT_RECORD,
             //            eventtrace::TDH_INTYPE_SIZET => (),
             //            eventtrace::TDH_INTYPE_HEXDUMP => (),
             //            eventtrace::TDH_INTYPE_WBEMSID => (),
-            _ => TdhProperty::UInt16(0),
+            _ => TdhProperty::NoImple,
         };
         Ok((contain_name, v))
     } else {
