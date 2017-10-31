@@ -1,11 +1,15 @@
 extern crate winapi;
 extern crate widestring;
+extern crate chrono;
 
 use std::mem;
 use std::thread;
 use std::time::Duration;
 use std::ptr;
 use std::collections::HashMap;
+
+use chrono::prelude::*;
+
 use winapi::um::errhandlingapi;
 use winapi::um::eventtrace;
 use widestring::WideCString;
@@ -24,7 +28,7 @@ fn main() {
         (*prop).Wnode.Guid = eventtrace::SystemTraceControlGuid;
         (*prop).Wnode.ClientContext = 1;
         (*prop).Wnode.Flags = eventtrace::WNODE_FLAG_TRACED_GUID;
-        (*prop).EnableFlags = eventtrace::EVENT_TRACE_FLAG_PROCESS;
+        (*prop).EnableFlags = eventtrace::EVENT_TRACE_FLAG_NETWORK_TCPIP;
         (*prop).MaximumFileSize = 1;
         (*prop).LogFileMode = eventtrace::EVENT_TRACE_REAL_TIME_MODE;
         (*prop).LoggerNameOffset = mem::size_of::<eventtrace::EVENT_TRACE_PROPERTIES>() as u32;
@@ -90,7 +94,7 @@ unsafe extern "system" fn process_event(p_event: eventtrace::PEVENT_RECORD) {
         return;
     }
 
-    get_event_info(p_event, info).map(|x| println!("{:?}", x));
+    get_event_info(p_event, info).map(|x| println!("time:{}\tvalue:{:?}", Local::now(), x));
 }
 
 unsafe fn get_event_info(p_event: eventtrace::PEVENT_RECORD,
@@ -191,6 +195,7 @@ unsafe fn get_property_info(p_event: eventtrace::PEVENT_RECORD,
         let r = get_property_map(p_event, p_info);
         (name.to_string_lossy(), TdhProperty::Struct(Box::new(r)))
     } else {
+        // TODO: use Result
         get_property_info_non_struct(p_event, p_info, property_info, None)
             .expect("!!!!!!!!!!!!")
     }
