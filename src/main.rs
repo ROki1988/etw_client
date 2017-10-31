@@ -90,11 +90,11 @@ unsafe extern "system" fn process_event(p_event: eventtrace::PEVENT_RECORD) {
         return;
     }
 
-    show_event_info(p_event, info);
+    get_event_info(p_event, info).map(|x| println!("{:?}", x));
 }
 
-unsafe fn show_event_info(p_event: eventtrace::PEVENT_RECORD,
-                          p_info: eventtrace::PTRACE_EVENT_INFO) {
+unsafe fn get_event_info(p_event: eventtrace::PEVENT_RECORD,
+                         p_info: eventtrace::PTRACE_EVENT_INFO) -> Option<TdhInfo> {
     let p = p_info as *const u8;
     println!("Id: {:}.", (*p_event).EventHeader.EventDescriptor.Id);
     println!("Task: {:}.", (*p_event).EventHeader.EventDescriptor.Task);
@@ -119,7 +119,7 @@ unsafe fn show_event_info(p_event: eventtrace::PEVENT_RECORD,
              (*p_info).TopLevelPropertyCount);
 
     if (*p_info).TopLevelPropertyCount <= 0 {
-        return;
+        return None;
     }
 
 
@@ -134,7 +134,7 @@ unsafe fn show_event_info(p_event: eventtrace::PEVENT_RECORD,
             .collect(),
     };
 
-    println!("{:?}", a);
+    Some(a)
 }
 
 #[derive(Debug)]
